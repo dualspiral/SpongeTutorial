@@ -1,0 +1,1 @@
+This is just a quick plugin to be used as a tutorial for anyone who wants to see a quick, functioning plugin.
