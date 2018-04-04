@@ -1,11 +1,17 @@
 plugins {
+    // The Sponge Gradle plugin automates a few tasks
+    // and includes the correct maven repo for Sponge
     id 'org.spongepowered.plugin' version '0.8.1'
 }
 
+// Maven stuff
 group = pluginGroup
+
+// Set in gradle.properties, as is the plugin name and ID
 version = pluginVersion
 
 dependencies {
+    // This will change as we improve the API!
     compile 'org.spongepowered:spongeapi:7.0.0'
 }
 
