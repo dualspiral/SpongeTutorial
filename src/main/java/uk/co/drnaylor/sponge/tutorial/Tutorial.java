@@ -7,19 +7,26 @@ import ninja.leaping.configurate.objectmapping.ObjectMappingException;
 import ninja.leaping.configurate.yaml.YAMLConfigurationLoader;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.command.CommandException;
+import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
+import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.format.TextColors;
+import org.spongepowered.api.text.serializer.TextSerializer;
+import org.spongepowered.api.text.serializer.TextSerializers;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 import javax.inject.Inject;
 
@@ -165,6 +172,10 @@ public class Tutorial {
         return this.config;
     }
 
+    // Tasks object
+
+    private final Tasks tasks = new Tasks(this);
+
     // SERVER INITIALISATION
 
     // See https://docs.spongepowered.org/stable/en/plugin/lifecycle.html
@@ -264,6 +275,81 @@ public class Tutorial {
                                 .executor(new ExampleCommandExecutor(this))
                                 .build(),
                         "sendmessage");
+
+        // Command /repeatbc <interval> <& encoded message>
+        Sponge.getCommandManager()
+                .register(this,
+                        CommandSpec.builder()
+                            .permission("tutorial.repeatbc")
+                            .arguments(
+                                    GenericArguments.integer(Text.of("seconds")),
+                                    GenericArguments.text(Text.of("message"), TextSerializers.FORMATTING_CODE, true)
+                            )
+                            .executor((src, context) -> {
+                                Text message = context.<Text>getOne("message").get();
+                                this.tasks.createRecurringTaskThatBroadcastsAMessageEverySoOftenFiveTimes(
+                                        message,
+                                        context.<Integer>getOne("seconds").get()
+                                );
+
+                                src.sendMessage(Text.of(TextColors.GREEN, "Will broadcast the following 5 times:"));
+                                src.sendMessage(Text.of(message));
+                                return CommandResult.success();
+                            })
+                        .build(), "repeatbc");
+
+        // Command /delayedbc <delay> <& encoded message>
+        Sponge.getCommandManager()
+                .register(this,
+                        CommandSpec.builder()
+                                .permission("tutorial.delayedbc")
+                                .arguments(
+                                        GenericArguments.integer(Text.of("seconds")),
+                                        GenericArguments.text(Text.of("message"), TextSerializers.FORMATTING_CODE, true)
+                                )
+                                .executor((src, context) -> {
+                                    Text message = context.<Text>getOne("message").get();
+                                    int secs = context.<Integer>getOne("seconds").get();
+
+                                    // Creates task
+                                    this.tasks.sendADelayedMessage(message, secs);
+
+                                    src.sendMessage(Text.of(TextColors.GREEN, "Will broadcast the following in ", secs, " seconds:"));
+                                    src.sendMessage(Text.of(message));
+                                    return CommandResult.success();
+                                })
+                                .build(), "delayedbc");
+
+        // Command /healint [player]
+        Sponge.getCommandManager()
+                .register(this,
+                        CommandSpec.builder()
+                                .permission("tutorial.healint")
+                                .arguments(
+                                        // There is playerOrSource, but I find that will select yourself if you get an error, so
+                                        // I go for optional + player here. Optional means "only parse if there is an argument to parse"
+                                        // so "/heal" will select self, "/heal dualspiral" will select dualspiral, and "/heal idontexist"
+                                        // will error.
+                                        GenericArguments.optional(GenericArguments.player(Text.of("player")))
+                                )
+                                .executor((src, context) -> {
+                                    Optional<Player> optionalPlayer = context.getOne("player");
+                                    Player player;
+                                    if (optionalPlayer.isPresent()) {
+                                        player = optionalPlayer.get();
+                                    } else if (src instanceof Player) {
+                                        player = (Player) src;
+                                    } else {
+                                        throw new CommandException(Text.of(TextColors.RED, "This command requires a player!"));
+                                    }
+
+                                    // Creates task
+                                    this.tasks.healPlayerEveryMinute(player.getUniqueId());
+
+                                    src.sendMessage(Text.of(TextColors.GREEN, "Will heal " + player.getName() + " every minute until they log out:"));
+                                    return CommandResult.success();
+                                })
+                                .build(), "healint");
 
         // Registering events is as easy as this. The first object in the method is the plugin object
         // (the one annotated with @Plugin), the second is your object containing listeners
