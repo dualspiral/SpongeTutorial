@@ -143,7 +143,7 @@ public class Tutorial {
      * We recommend HOCON as a configuration file object
      */
     @Inject
-    public void setupYAMLConfigLoader(@DefaultConfig(sharedRoot = false) Path defaultConfigDirectory) {
+    public void setupYAMLConfigLoader(@ConfigDir(sharedRoot = false) Path defaultConfigDirectory) {
         this.yamlConfigurationLoader = YAMLConfigurationLoader.builder()
                 .setPath(defaultConfigDirectory.resolve("config.yml"))
                 .build();
